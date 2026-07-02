@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        // iPadかiPhoneなら軽量版、それ以外(Mac等)は複雑版へ飛ばす
+        if (/iPad|iPhone/.test(navigator.userAgent)) {
+            window.location.href = "ipad/index.html";
+        } else {
+            window.location.href = "mac/index.html";
+        }
+    </script>
+</head>
+<body></body>
+</html>
