@@ -2,26 +2,30 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>病理ランダムテスト・復習版</title>
+    <title>病理ランダムテスト・1000枚対応版</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; }
-        img { max-width: 100%; max-height: 60vh; border: 2px solid #333; margin: 10px 0; }
-        .controls { margin-top: 10px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; }
-        #reviewList { text-align: left; margin-top: 40px; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f0f0f0; }
+        #imgDisplay { max-width: 100%; max-height: 60vh; border: 2px solid #ccc; background-color: #fff; margin: 10px 0; }
+        .controls { margin-top: 15px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; background-color: #007aff; color: white; }
+        #reviewList { text-align: left; margin-top: 40px; padding-top: 20px; border-top: 2px solid #ccc; }
+        .review-item { display: inline-block; margin: 10px; text-align: center; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
+        .review-item img { max-height: 150px; display: block; margin: 0 auto 5px; }
     </style>
 </head>
 <body>
-    <h2>1. 全画像（問題と答え）を選択してください</h2>
+    <h2>全画像（問題と答えを含む）を選択</h2>
     <input type="file" id="fileInput" multiple accept="image/*">
-    
+    <p id="status" style="font-weight: bold;"></p>
+
     <div id="viewer" style="display:none;">
+        <p id="counter"></p>
         <img id="imgDisplay">
         <div class="controls">
             <button id="btnShowAns">答えを表示</button>
             <div id="ansControls" style="display:none;">
-                <button onclick="record(true)">わかった</button>
-                <button onclick="record(false)" style="background:#ff3b30; color:white;">わからなかった</button>
+                <button onclick="record(true)">わかった(次へ)</button>
+                <button onclick="record(false)" style="background:#ff3b30;">わからなかった(記録)</button>
             </div>
         </div>
     </div>
@@ -32,30 +36,74 @@
     </div>
 
     <script>
-        let problems = [], currentIdx = 0;
-        
-        document.getElementById('fileInput').onchange = (e) => {
+        let problems = [];
+        let currentIdx = 0;
+        let currentUrl = null; // メモリ管理用
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
             const files = Array.from(e.target.files);
-            // 「_ans」を含まないファイルを問題として抽出
-            problems = files.filter(f => !f.name.includes('_ans')).sort(() => Math.random() - 0.5);
+            if (files.length === 0) return;
+
+            // 1. ファイル名で問題と答えをペアリング
+            const fileMap = new Map();
+            for (const file of files) {
+                // 拡張子を除外 (例: a001.jpg -> a001)
+                const nameNoExt = file.name.replace(/\.[^/.]+$/, "");
+                const isAns = nameNoExt.endsWith('_ans');
+                // "_ans" を除いた文字列をベース名とする
+                const baseName = isAns ? nameNoExt.replace(/_ans$/, '') : nameNoExt;
+
+                if (!fileMap.has(baseName)) {
+                    fileMap.set(baseName, { prob: null, ans: null, name: baseName });
+                }
+                if (isAns) {
+                    fileMap.get(baseName).ans = file;
+                } else {
+                    fileMap.get(baseName).prob = file;
+                }
+            }
+
+            // 2. 問題ファイル(prob)が存在するペアのみ抽出
+            problems = Array.from(fileMap.values()).filter(p => p.prob !== null);
+
+            if (problems.length === 0) {
+                document.getElementById('status').innerText = "エラー: 処理可能な問題画像が見つかりません。ファイル名を確認してください。";
+                return;
+            }
+
+            // 3. ランダムシャッフル
+            for (let i = problems.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [problems[i], problems[j]] = [problems[j], problems[i]];
+            }
+
+            currentIdx = 0;
+            document.getElementById('status').innerText = `全 ${problems.length} 問のペアを読み込みました。`;
             document.getElementById('viewer').style.display = 'block';
             show(false);
-        };
+        });
 
         function show(isAns) {
-            const img = document.getElementById('imgDisplay');
-            const file = problems[currentIdx];
+            const pair = problems[currentIdx];
+
+            // 前のURLを解放してメモリリークを防ぐ
+            if (currentUrl) {
+                URL.revokeObjectURL(currentUrl);
+            }
+
+            // 答え画像がない場合は問題画像を代わりに表示
+            const fileToShow = isAns ? (pair.ans || pair.prob) : pair.prob;
+            currentUrl = URL.createObjectURL(fileToShow);
+            document.getElementById('imgDisplay').src = currentUrl;
+
+            document.getElementById('counter').innerText = `第 ${currentIdx + 1} 問 / ${problems.length} 問中`;
+
             if (!isAns) {
-                img.src = URL.createObjectURL(file);
-                document.getElementById('btnShowAns').style.display = 'inline';
+                document.getElementById('btnShowAns').style.display = 'inline-block';
                 document.getElementById('ansControls').style.display = 'none';
             } else {
-                // 同じ名前の「_ans」付きファイルを探す
-                const ansFile = Array.from(document.getElementById('fileInput').files)
-                                     .find(f => f.name.includes(file.name.split('.')[0] + '_ans'));
-                img.src = ansFile ? URL.createObjectURL(ansFile) : URL.createObjectURL(file);
                 document.getElementById('btnShowAns').style.display = 'none';
-                document.getElementById('ansControls').style.display = 'inline';
+                document.getElementById('ansControls').style.display = 'inline-block';
             }
         }
 
@@ -63,11 +111,28 @@
 
         function record(isKnown) {
             if (!isKnown) {
+                // わからなかった場合、リストにサムネイルを追加
+                const pair = problems[currentIdx];
+                const div = document.createElement('div');
+                div.className = 'review-item';
+
                 const img = document.createElement('img');
-                img.src = document.getElementById('imgDisplay').src;
-                document.getElementById('reviewContainer').appendChild(img);
+                const ansFile = pair.ans || pair.prob;
+                img.src = URL.createObjectURL(ansFile); // 復習用画像の表示
+
+                const p = document.createElement('p');
+                p.innerText = pair.name;
+
+                div.appendChild(img);
+                div.appendChild(p);
+                document.getElementById('reviewContainer').appendChild(div);
             }
-            currentIdx = (currentIdx + 1) % problems.length;
+
+            currentIdx++;
+            if (currentIdx >= problems.length) {
+                alert('全問題が終了しました。最初に戻ります。');
+                currentIdx = 0;
+            }
             show(false);
         }
     </script>
