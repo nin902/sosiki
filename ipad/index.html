@@ -6,19 +6,17 @@
     <style>
         body { font-family: sans-serif; text-align: center; padding: 10px; background: #f0f0f0; }
         img { max-width: 100%; max-height: 50vh; border: 2px solid #333; margin: 10px 0; background: white; }
-        .controls { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        button { padding: 15px 30px; font-size: 18px; width: 80%; max-width: 300px; }
+        button { padding: 15px 30px; font-size: 18px; width: 90%; max-width: 300px; margin: 5px; }
         #reviewList { text-align: left; background: white; padding: 10px; margin-top: 20px; }
-        .item { font-size: 14px; border-bottom: 1px solid #ccc; padding: 5px; }
     </style>
 </head>
 <body>
-    <input type="file" id="fileInput" multiple accept="image/*">
+    <input type="file" id="fileInput" multiple accept="image/png">
     <div id="viewer" style="display:none;">
         <img id="img">
-        <div class="controls">
+        <div id="controls">
             <button id="btnShow" onclick="showAns()">答えを表示</button>
-            <div id="judge" style="display:none; width: 100%; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+            <div id="judge" style="display:none;">
                 <button onclick="judge(true)">OK (次へ)</button>
                 <button onclick="judge(false)" style="background:#ff3b30; color:white;">NG (記録して次へ)</button>
             </div>
@@ -29,39 +27,49 @@
         <div id="list"></div>
     </div>
     <script>
-        let files = [], idx = 0, counts = {};
-        // フォルダ内のファイル名から問題と答えをペアリングして抽出する
+        let problems = [], ansMap = new Map(), idx = 0, counts = {};
+
         document.getElementById('fileInput').onchange = (e) => {
             const all = Array.from(e.target.files);
-            // _ans を含まないものを問題リストとして抽出
-            files = all.filter(f => !f.name.includes('_ans')).sort(() => Math.random() - 0.5);
-            // 答えファイル用マップ作成
-            window.ansMap = new Map(all.filter(f => f.name.includes('_ans')).map(f => [f.name.replace('_ans', ''), f]));
+            // 答えファイル用マップ：ファイル名をキーとして保存
+            ansMap = new Map();
+            all.forEach(f => {
+                if (f.name.includes('_ans')) {
+                    ansMap.set(f.name, f);
+                }
+            });
+
+            // 問題ファイル：_ansを含まないもの
+            problems = all.filter(f => !f.name.includes('_ans')).sort(() => Math.random() - 0.5);
+            
             document.getElementById('viewer').style.display = 'block';
             showProb();
         };
 
         function showProb() {
-            document.getElementById('img').src = URL.createObjectURL(files[idx]);
-            document.getElementById('btnShow').style.display = 'block';
+            document.getElementById('img').src = URL.createObjectURL(problems[idx]);
+            document.getElementById('btnShow').style.display = 'inline-block';
             document.getElementById('judge').style.display = 'none';
         }
 
         function showAns() {
-            const ansFile = window.ansMap.get(files[idx].name.replace('.png', '').replace('.jpg', '') + '.png') || 
-                            window.ansMap.get(files[idx].name.replace('.png', '').replace('.jpg', '') + '.jpg');
-            if(ansFile) document.getElementById('img').src = URL.createObjectURL(ansFile);
+            // 現在の問題ファイル名の「.png」を「_ans.png」に置換して探す
+            const ansName = problems[idx].name.replace('.png', '_ans.png');
+            const ansFile = ansMap.get(ansName);
+            if(ansFile) {
+                document.getElementById('img').src = URL.createObjectURL(ansFile);
+            }
             document.getElementById('btnShow').style.display = 'none';
-            document.getElementById('judge').style.display = 'flex';
+            document.getElementById('judge').style.display = 'block';
         }
 
         function judge(isOK) {
             if (!isOK) {
-                const name = files[idx].name;
+                const name = problems[idx].name;
                 counts[name] = (counts[name] || 0) + 1;
-                document.getElementById('list').innerHTML += `<div class="item">${name}: ${counts[name]}回</div>`;
+                document.getElementById('list').innerHTML += `<div>${name}: ${counts[name]}回</div>`;
             }
-            idx = (idx + 1) % files.length;
+            idx = (idx + 1) % problems.length;
             showProb();
         }
     </script>
