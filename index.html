@@ -2,73 +2,73 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>病理テストツール</title>
+    <title>病理ランダムテスト・復習版</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f0f0f0; }
-        #viewer { display: none; margin-top: 20px; }
-        img { max-width: 100%; max-height: 50vh; object-fit: contain; border: 2px solid #ccc; background-color: #fff; }
-        .controls { margin-top: 15px; }
-        button { padding: 15px 25px; font-size: 16px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; background-color: #007aff; color: white; }
-        #answer { font-size: 20px; font-weight: bold; margin-top: 15px; color: #d9534f; min-height: 25px; }
-        .hidden { visibility: hidden; }
-        #mistakeList { text-align: left; margin-top: 30px; padding: 10px; background: white; border-radius: 8px; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        img { max-width: 100%; max-height: 60vh; border: 2px solid #333; margin: 10px 0; }
+        .controls { margin-top: 10px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; }
+        #reviewList { text-align: left; margin-top: 40px; }
     </style>
 </head>
 <body>
-    <h2>画像を選択して開始</h2>
+    <h2>1. 全画像（問題と答え）を選択してください</h2>
     <input type="file" id="fileInput" multiple accept="image/*">
-    <p id="status"></p>
-
-    <div id="viewer">
-        <img id="displayImage" src="">
-        <div id="answer" class="hidden"></div>
+    
+    <div id="viewer" style="display:none;">
+        <img id="imgDisplay">
         <div class="controls">
-            <button id="btnAnswer">答えを見る</button>
-            <button id="btnNext">正解(次へ)</button>
-            <button id="btnWrong" style="background-color: #ff3b30;">不正解(記録)</button>
+            <button id="btnShowAns">答えを表示</button>
+            <div id="ansControls" style="display:none;">
+                <button onclick="record(true)">わかった</button>
+                <button onclick="record(false)" style="background:#ff3b30; color:white;">わからなかった</button>
+            </div>
         </div>
     </div>
 
-    <div id="mistakeList">
-        <strong>間違えた画像リスト:</strong>
-        <ul id="listItems"></ul>
+    <div id="reviewList">
+        <h3>わからなかったリスト:</h3>
+        <div id="reviewContainer"></div>
     </div>
 
     <script>
-        let images = [];
-        let currentIndex = 0;
-
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            images = Array.from(e.target.files);
-            for (let i = images.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [images[i], images[j]] = [images[j], images[i]];
-            }
-            currentIndex = 0;
+        let problems = [], currentIdx = 0;
+        
+        document.getElementById('fileInput').onchange = (e) => {
+            const files = Array.from(e.target.files);
+            // 「_ans」を含まないファイルを問題として抽出
+            problems = files.filter(f => !f.name.includes('_ans')).sort(() => Math.random() - 0.5);
             document.getElementById('viewer').style.display = 'block';
-            showImage();
-        });
-
-        document.getElementById('btnAnswer').onclick = () => document.getElementById('answer').classList.remove('hidden');
-        document.getElementById('btnWrong').onclick = () => {
-            const li = document.createElement('li');
-            li.textContent = images[currentIndex].name.replace(/\.[^/.]+$/, "");
-            document.getElementById('listItems').appendChild(li);
-            next();
+            show(false);
         };
-        document.getElementById('btnNext').onclick = next;
 
-        function next() {
-            currentIndex = (currentIndex + 1) % images.length;
-            showImage();
+        function show(isAns) {
+            const img = document.getElementById('imgDisplay');
+            const file = problems[currentIdx];
+            if (!isAns) {
+                img.src = URL.createObjectURL(file);
+                document.getElementById('btnShowAns').style.display = 'inline';
+                document.getElementById('ansControls').style.display = 'none';
+            } else {
+                // 同じ名前の「_ans」付きファイルを探す
+                const ansFile = Array.from(document.getElementById('fileInput').files)
+                                     .find(f => f.name.includes(file.name.split('.')[0] + '_ans'));
+                img.src = ansFile ? URL.createObjectURL(ansFile) : URL.createObjectURL(file);
+                document.getElementById('btnShowAns').style.display = 'none';
+                document.getElementById('ansControls').style.display = 'inline';
+            }
         }
 
-        function showImage() {
-            document.getElementById('displayImage').src = URL.createObjectURL(images[currentIndex]);
-            const name = images[currentIndex].name.replace(/\.[^/.]+$/, "");
-            document.getElementById('answer').textContent = name;
-            document.getElementById('answer').classList.add('hidden');
+        document.getElementById('btnShowAns').onclick = () => show(true);
+
+        function record(isKnown) {
+            if (!isKnown) {
+                const img = document.createElement('img');
+                img.src = document.getElementById('imgDisplay').src;
+                document.getElementById('reviewContainer').appendChild(img);
+            }
+            currentIdx = (currentIdx + 1) % problems.length;
+            show(false);
         }
     </script>
 </body>
