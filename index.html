@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ランダムテスト・セーブ＆コード引き継ぎ</title>
+    <title>画像ランダムテスト</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f0f0f0; }
         #imgDisplay { max-width: 100%; max-height: 55vh; border: 2px solid #ccc; background-color: #fff; margin: 10px 0; }
@@ -26,9 +26,8 @@
 
     <div id="saveLoadSection">
         <h3 style="margin-top:0;">2. データ引き継ぎ（任意）</h3>
-        <p style="font-size:14px; color:#555; margin:0 0 10px 0;">※同じブラウザなら自動セーブされます。別端末に移行する場合のみ使用してください。</p>
         <button class="btn-secondary" onclick="generateCode()">現在の記録からコードを発行↓</button>
-        <button class="btn-secondary" onclick="loadCode()">↓入力されたコードから復元</button>
+        <button class="btn-secondary" onclick="loadCode()">↓コードから復元</button>
         <button class="btn-danger" style="float:right;" onclick="clearRecord()">全記録リセット</button>
         <textarea id="transferCode" placeholder="ここに引き継ぎコードが表示される、または入力して復元します"></textarea>
     </div>
@@ -56,8 +55,6 @@
         let currentIdx = 0;
         let currentUrl = null;
         let fileMap = new Map();
-        
-        // ローカルストレージから記録を読み込む
         let mistakeCounts = JSON.parse(localStorage.getItem('pathoMistakes')) || {};
 
         document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -123,7 +120,10 @@
             const imgDisplay = document.getElementById('imgDisplay');
             const errorMsg = document.getElementById('errorMsg');
 
-            if (currentUrl) URL.revokeObjectURL(currentUrl);
+            if (currentUrl) {
+                URL.revokeObjectURL(currentUrl);
+                currentUrl = null;
+            }
 
             document.getElementById('counter').innerText = `第 ${currentIdx + 1} 問 / ${problems.length} 問中`;
 
@@ -153,108 +153,4 @@
 
         document.getElementById('btnShowAns').onclick = () => show(true);
 
-        function record(isKnown) {
-            if (!isKnown) {
-                const baseName = problems[currentIdx].name;
-                mistakeCounts[baseName] = (mistakeCounts[baseName] || 0) + 1;
-                saveData();
-                renderReviewList();
-            }
-            
-            currentIdx++;
-            if (currentIdx >= problems.length) {
-                alert('全問題が終了。最初に戻る。');
-                currentIdx = 0;
-            }
-            show(false);
-        }
-
-        function saveData() {
-            localStorage.setItem('pathoMistakes', JSON.stringify(mistakeCounts));
-        }
-
-        function generateCode() {
-            try {
-                const str = JSON.stringify(mistakeCounts);
-                const b64 = btoa(encodeURIComponent(str)); 
-                document.getElementById('transferCode').value = b64;
-                alert('コード発行完了。');
-            } catch(e) {
-                alert('コード発行エラー');
-            }
-        }
-
-        function loadCode() {
-            try {
-                const b64 = document.getElementById('transferCode').value.trim();
-                if (!b64) return alert('コード未入力');
-                const str = decodeURIComponent(atob(b64));
-                mistakeCounts = JSON.parse(str);
-                saveData();
-                renderReviewList();
-                alert('復元完了。');
-            } catch(e) {
-                alert('無効なコード。');
-            }
-        }
-
-        function clearRecord() {
-            if(confirm('記録をすべてリセットするか？')) {
-                mistakeCounts = {};
-                saveData();
-                renderReviewList();
-            }
-        }
-
-        function renderReviewList() {
-            const container = document.getElementById('reviewContainer');
-            container.innerHTML = '';
-
-            const sortedMistakes = Object.entries(mistakeCounts).sort((a, b) => b[1] - a[1]);
-
-            for (const [baseName, count] of sortedMistakes) {
-                if (count <= 0) continue;
-
-                const div = document.createElement('div');
-                div.className = 'review-item';
-
-                let imgSrc = '';
-                if (fileMap.has(baseName)) {
-                    const pair = fileMap.get(baseName);
-                    // 変更点: 答え画像ではなく、問題画像(prob)のみをサムネイルに採用する
-                    const probFile = pair.prob;
-                    if(probFile) imgSrc = URL.createObjectURL(probFile);
-                }
-
-                if (imgSrc) {
-                    const img = document.createElement('img');
-                    img.src = imgSrc;
-                    div.appendChild(img);
-                } else {
-                    const pNoImg = document.createElement('p');
-                    pNoImg.style.fontSize = '12px';
-                    pNoImg.style.color = '#999';
-                    pNoImg.innerText = '(画像未読込)';
-                    div.appendChild(pNoImg);
-                }
-
-                const pName = document.createElement('p');
-                pName.style.margin = '5px 0';
-                pName.style.fontSize = '14px';
-                pName.style.wordBreak = 'break-all';
-                pName.innerText = baseName;
-
-                const pCount = document.createElement('p');
-                pCount.style.margin = '0';
-                pCount.innerHTML = `<span class="badge">${count}回</span>`;
-
-                div.appendChild(pName);
-                div.appendChild(pCount);
-                container.appendChild(div);
-            }
-        }
-
-        renderReviewList();
-    </script>
-</body>
-</html>
+        function record
