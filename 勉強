@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>病理画像ビューア</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f0f0f0; }
+        #viewer { display: none; margin-top: 20px; }
+        img { max-width: 100%; max-height: 65vh; object-fit: contain; border: 2px solid #ccc; background-color: #fff; }
+        .controls { margin-top: 15px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; background-color: #007aff; color: white; }
+        #answer { font-size: 24px; font-weight: bold; margin-top: 15px; color: #d9534f; min-height: 30px; }
+        .hidden { visibility: hidden; }
+    </style>
+</head>
+<body>
+    <h2>画像を選択</h2>
+    <input type="file" id="fileInput" multiple accept="image/*">
+    <p id="status"></p>
+
+    <div id="viewer">
+        <img id="displayImage" src="">
+        <div id="answer" class="hidden"></div>
+        <div class="controls">
+            <button id="btnAnswer">答えを見る</button>
+            <button id="btnNext">次の画像</button>
+        </div>
+    </div>
+
+    <script>
+        let images = [];
+        let currentIndex = 0;
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+            
+            images = files;
+            for (let i = images.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [images[i], images[j]] = [images[j], images[i]];
+            }
+            
+            currentIndex = 0;
+            document.getElementById('status').innerText = `全 ${images.length} 枚読込完了`;
+            document.getElementById('viewer').style.display = 'block';
+            showImage();
+        });
+
+        document.getElementById('btnAnswer').addEventListener('click', function() {
+            document.getElementById('answer').classList.remove('hidden');
+        });
+
+        document.getElementById('btnNext').addEventListener('click', function() {
+            currentIndex++;
+            if (currentIndex >= images.length) {
+                alert('すべての問題が終了した。最初から繰り返す。');
+                currentIndex = 0;
+            }
+            showImage();
+        });
+
+        function showImage() {
+            const file = images[currentIndex];
+            document.getElementById('displayImage').src = URL.createObjectURL(file);
+            document.getElementById('answer').innerText = file.name.replace(/\.[^/.]+$/, "");
+            document.getElementById('answer').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
