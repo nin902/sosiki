@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>病理テスト・共通安定版</title>
+    <title>ランダムテスト</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 10px; background: #f0f0f0; }
         img { max-width: 100%; max-height: 55vh; border: 2px solid #333; margin: 10px 0; background: white; }
@@ -35,7 +35,6 @@
         let problems = [], ansMap = new Map(), idx = 0, counts = {};
 
         document.getElementById('fileInput').onchange = (e) => {
-            // グレーアウト回避のため image/* で読み込み、JS側で png のみを抽出
             const all = Array.from(e.target.files).filter(f => f.name.toLowerCase().endsWith('.png'));
             
             ansMap = new Map();
@@ -54,7 +53,8 @@
 
         function showProb() {
             document.getElementById('counter').innerText = `第 ${idx + 1} 問 / ${problems.length} 問中`;
-            document.getElementById('fileNameDisplay').innerText = problems[idx].name;
+            // ファイル名を隠す
+            document.getElementById('fileNameDisplay').innerText = "(問題)";
             document.getElementById('img').src = URL.createObjectURL(problems[idx]);
             document.getElementById('btnShow').style.display = 'inline-block';
             document.getElementById('judge').style.display = 'none';
@@ -65,9 +65,10 @@
             const ansFile = ansMap.get(ansName);
             if(ansFile) {
                 document.getElementById('img').src = URL.createObjectURL(ansFile);
-                document.getElementById('fileNameDisplay').innerText = ansName + " (答え)";
+                // 答えのタイミングでファイル名を表示
+                document.getElementById('fileNameDisplay').innerText = problems[idx].name + " / " + ansName;
             } else {
-                document.getElementById('fileNameDisplay').innerText = ansName + " (※答え画像なし)";
+                document.getElementById('fileNameDisplay').innerText = problems[idx].name + " (※答え画像なし)";
             }
             document.getElementById('btnShow').style.display = 'none';
             document.getElementById('judge').style.display = 'block';
@@ -86,7 +87,7 @@
         function updateList() {
             const list = document.getElementById('list');
             list.innerHTML = Object.entries(counts)
-                .sort((a, b) => b[1] - a[1]) // NG回数が多い順にソート
+                .sort((a, b) => b[1] - a[1])
                 .map(([n, c]) => `<div class="review-item">${n}: ${c}回</div>`)
                 .join('');
         }
