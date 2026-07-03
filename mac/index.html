@@ -2,110 +2,94 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ランダムテスト</title>
+    <title>病理テスト・共通安定版</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f0f0f0; }
-        #imgDisplay { max-width: 100%; max-height: 55vh; border: 2px solid #ccc; background-color: #fff; margin: 10px 0; }
-        #fileNameDisplay { font-weight: bold; color: #333; margin-bottom: 5px; }
-        .controls { margin-top: 10px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; background-color: #007aff; color: white; }
+        body { font-family: sans-serif; text-align: center; padding: 10px; background: #f0f0f0; }
+        img { max-width: 100%; max-height: 55vh; border: 2px solid #333; margin: 10px 0; background: white; }
+        #fileNameDisplay { font-size: 16px; color: #333; margin-bottom: 5px; height: 1.2em; font-weight: bold; }
+        button { padding: 15px 30px; font-size: 18px; width: 90%; max-width: 300px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; background-color: #007aff; color: white; }
         .btn-danger { background-color: #ff3b30; }
-        .btn-secondary { background-color: #6c757d; }
-        #saveLoadSection { background: #fff; padding: 15px; margin: 10px auto; border-radius: 8px; border: 1px solid #ccc; text-align: left; max-width: 800px; }
-        #reviewList { text-align: left; margin-top: 30px; padding-top: 20px; border-top: 2px solid #ccc; max-width: 1000px; margin-left: auto; margin-right: auto; }
-        .review-item { display: inline-block; margin: 10px; text-align: center; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #ddd; vertical-align: top; width: 160px; }
-        .review-item img { max-height: 120px; max-width: 140px; display: block; margin: 0 auto 5px; object-fit: contain; }
-        .badge { background: #ff3b30; color: white; padding: 2px 6px; border-radius: 10px; font-size: 14px; font-weight: bold; }
-        textarea { width: 100%; height: 60px; margin-top: 5px; font-family: monospace; }
+        #reviewList { text-align: left; background: white; padding: 15px; margin-top: 20px; border-radius: 8px; max-width: 800px; margin-left: auto; margin-right: auto; }
+        .review-item { font-size: 14px; border-bottom: 1px solid #ddd; padding: 8px 0; }
     </style>
 </head>
 <body>
-    <h2>PC用：全画像一括選択</h2>
-    <input type="file" id="fileInput" multiple accept="image/png">
-    
-    <div id="saveLoadSection">
-        <h3>データ引き継ぎ（別端末用）</h3>
-        <button class="btn-secondary" onclick="generateCode()">現在の記録からコードを発行↓</button>
-        <button class="btn-secondary" onclick="loadCode()">↓入力されたコードから復元</button>
-        <button class="btn-danger" style="float:right;" onclick="clearRecord()">全記録リセット</button>
-        <textarea id="transferCode"></textarea>
-    </div>
-
+    <input type="file" id="fileInput" multiple accept="image/*">
     <div id="viewer" style="display:none;">
-        <p id="counter" style="font-weight: bold;"></p>
+        <p id="counter" style="margin: 5px 0; font-weight: bold;"></p>
         <div id="fileNameDisplay"></div>
-        <img id="imgDisplay">
-        <div class="controls">
-            <button id="btnShowAns">答えを表示</button>
-            <div id="ansControls" style="display:none;">
-                <button onclick="record(true)">わかった(次へ)</button>
-                <button onclick="record(false)" class="btn-danger">わからなかった(記録)</button>
+        <img id="img">
+        <div id="controls">
+            <button id="btnShow" onclick="showAns()">答えを表示</button>
+            <div id="judge" style="display:none;">
+                <button onclick="judge(true)">OK (次へ)</button>
+                <button onclick="judge(false)" class="btn-danger">NG (記録して次へ)</button>
             </div>
         </div>
     </div>
-
     <div id="reviewList">
-        <h3>わからなかったリスト:</h3>
-        <div id="reviewContainer"></div>
+        <h3>NG回数リスト:</h3>
+        <div id="list"></div>
     </div>
-
     <script>
-        let problems = [], ansMap = new Map(), currentIdx = 0, mistakeCounts = JSON.parse(localStorage.getItem('pathoMistakes')) || {};
+        let problems = [], ansMap = new Map(), idx = 0, counts = {};
 
         document.getElementById('fileInput').onchange = (e) => {
-            const all = Array.from(e.target.files);
+            // グレーアウト回避のため image/* で読み込み、JS側で png のみを抽出
+            const all = Array.from(e.target.files).filter(f => f.name.toLowerCase().endsWith('.png'));
+            
             ansMap = new Map();
             all.forEach(f => { if (f.name.includes('_ans')) ansMap.set(f.name, f); });
             problems = all.filter(f => !f.name.includes('_ans')).sort(() => Math.random() - 0.5);
+            
+            if (problems.length === 0) {
+                alert('PNG形式の問題画像が見つからない。');
+                return;
+            }
+            
             document.getElementById('viewer').style.display = 'block';
-            renderReviewList();
+            idx = 0;
             showProb();
         };
 
         function showProb() {
-            document.getElementById('fileNameDisplay').innerText = problems[currentIdx].name;
-            document.getElementById('imgDisplay').src = URL.createObjectURL(problems[currentIdx]);
-            document.getElementById('counter').innerText = `第 ${currentIdx + 1} 問 / ${problems.length} 問中`;
-            document.getElementById('btnShowAns').style.display = 'inline-block';
-            document.getElementById('ansControls').style.display = 'none';
+            document.getElementById('counter').innerText = `第 ${idx + 1} 問 / ${problems.length} 問中`;
+            document.getElementById('fileNameDisplay').innerText = problems[idx].name;
+            document.getElementById('img').src = URL.createObjectURL(problems[idx]);
+            document.getElementById('btnShow').style.display = 'inline-block';
+            document.getElementById('judge').style.display = 'none';
         }
 
-        document.getElementById('btnShowAns').onclick = () => {
-            const ansName = problems[currentIdx].name.replace('.png', '_ans.png');
+        function showAns() {
+            const ansName = problems[idx].name.replace('.png', '_ans.png');
             const ansFile = ansMap.get(ansName);
             if(ansFile) {
-                document.getElementById('imgDisplay').src = URL.createObjectURL(ansFile);
+                document.getElementById('img').src = URL.createObjectURL(ansFile);
                 document.getElementById('fileNameDisplay').innerText = ansName + " (答え)";
+            } else {
+                document.getElementById('fileNameDisplay').innerText = ansName + " (※答え画像なし)";
             }
-            document.getElementById('btnShowAns').style.display = 'none';
-            document.getElementById('ansControls').style.display = 'block';
-        };
+            document.getElementById('btnShow').style.display = 'none';
+            document.getElementById('judge').style.display = 'block';
+        }
 
-        function record(isKnown) {
-            if (!isKnown) {
-                const baseName = problems[currentIdx].name;
-                mistakeCounts[baseName] = (mistakeCounts[baseName] || 0) + 1;
-                localStorage.setItem('pathoMistakes', JSON.stringify(mistakeCounts));
-                renderReviewList();
+        function judge(isOK) {
+            if (!isOK) {
+                const name = problems[idx].name;
+                counts[name] = (counts[name] || 0) + 1;
+                updateList();
             }
-            currentIdx = (currentIdx + 1) % problems.length;
+            idx = (idx + 1) % problems.length;
             showProb();
         }
 
-        function renderReviewList() {
-            const container = document.getElementById('reviewContainer');
-            container.innerHTML = '';
-            Object.entries(mistakeCounts).sort((a,b) => b[1]-a[1]).forEach(([name, count]) => {
-                const div = document.createElement('div'); div.className = 'review-item';
-                div.innerHTML = `<img src="${URL.createObjectURL(problems.find(p=>p.name===name))}"><p>${name}</p><span class="badge">${count}回</span>`;
-                container.appendChild(div);
-            });
+        function updateList() {
+            const list = document.getElementById('list');
+            list.innerHTML = Object.entries(counts)
+                .sort((a, b) => b[1] - a[1]) // NG回数が多い順にソート
+                .map(([n, c]) => `<div class="review-item">${n}: ${c}回</div>`)
+                .join('');
         }
-        
-        // 引き継ぎ用関数
-        function generateCode() { document.getElementById('transferCode').value = btoa(encodeURIComponent(JSON.stringify(mistakeCounts))); }
-        function loadCode() { mistakeCounts = JSON.parse(decodeURIComponent(atob(document.getElementById('transferCode').value))); localStorage.setItem('pathoMistakes', JSON.stringify(mistakeCounts)); renderReviewList(); }
-        function clearRecord() { mistakeCounts = {}; localStorage.setItem('pathoMistakes', JSON.stringify(mistakeCounts)); renderReviewList(); }
     </script>
 </body>
 </html>
